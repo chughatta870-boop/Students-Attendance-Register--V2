@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Students Attendance Register V2</title>
+<style>
+* {margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Tahoma, sans-serif;}
+body {background:#f5f5f5; color:#333;}
+header {background:#fff; padding:15px; text-align:center; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+header h1 {font-size:20px; color:#222;}
+.tabs {display:flex; background:#fff; border-bottom:2px solid #ddd; position:sticky; top:0; z-index:10;}
+.tab {flex:1; padding:12px; text-align:center; cursor:pointer; border:none; background:#fff; font-size:15px; font-weight:bold;}
+.tab.active {border-bottom:3px solid #007bff; color:#007bff;}
+.container {padding:15px; max-width:900px; margin:auto;}
+.card {background:#fff; padding:15px; border-radius:8px; margin-bottom:15px; box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+.btn {padding:10px 15px; border:none; border-radius:5px; cursor:pointer; font-size:14px; margin:5px;}
+.btn-primary {background:#007bff; color:#fff;}
+.btn-success {background:#28a745; color:#fff;}
+.btn-danger {background:#dc3545; color:#fff;}
+.btn-secondary {background:#6c757d; color:#fff;}
+input, select {width:100%; padding:8px; margin:5px 0; border:1px solid #ccc; border-radius:5px; font-size:14px;}
+.form-slide {max-height:0; overflow:hidden; transition:0.3s;}
+.form-slide.show {max-height:500px; margin-top:10px;}
+table {width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+th, td {border:1px solid #ddd; padding:8px; text-align:center;}
+th {background:#007bff; color:#fff;}
+@media print {.tabs,.btn {display:none;} body{background:#fff;} }
+</style>
+</head>
+<body>
+
+<header>
+<h1>Students Attendance Register V2</h1>
+</header>
+
+<div class="tabs">
+<button class="tab active" onclick="openTab('students')">Students</button>
+<button class="tab" onclick="openTab('attendance')">Attendance</button>
+<button class="tab" onclick="openTab('reports')">Reports</button>
+</div>
+
+<div class="container">
+
+<!-- Students Tab -->
+<div id="students" class="tabcontent">
+<div class="card">
+<button class="btn btn-primary" onclick="toggleForm()">+ نیا طالبعلم</button>
+<button class="btn btn-secondary" onclick="exportData()">Export CSV</button>
+<input type="file" id="importFile" accept=".csv,.json" onchange="importData(event)" style="display:none">
+<button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import Data</button>
+
+<div id="studentForm" class="form-slide">
+<h3>طالبعلم شامل کریں</h3>
+<input type="text" id="stuName" placeholder="نام">
+<input type="text" id="stuFather" placeholder="ولدیت">
+<input type="text" id="stuClass" placeholder="کلاس">
+<button class="btn btn-success" onclick="addStudent()">Save</button>
+<button class="btn btn-danger" onclick="toggleForm()">Cancel</button>
+</div>
+</div>
+
+<div class="card">
+<table id="studentTable">
+<thead><tr><th>#</th><th>نام</th><th>ولدیت</th><th>کلاس</th><th>Delete</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- Attendance Tab -->
+<div id="attendance" class="tabcontent" style="display:none">
+<div class="card">
+<h3>حاضری لگائیں</h3>
+<input type="date" id="attDate">
+<input type="text" id="classIncharge" placeholder="Class Incharge">
+<input type="text" id="period" placeholder="P1, P2 وغیرہ">
+<button class="btn btn-success" onclick="saveAttendance()">Save Attendance</button>
+</div>
+
+<div class="card">
+<table id="attTable">
+<thead><tr><th>#</th><th>نام</th><th>حاضری</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- Reports Tab -->
+<div id="reports" class="tabcontent" style="display:none">
+<div class="card">
+<h3>رپورٹس</h3>
+<input type="date" id="reportDate">
+<button class="btn btn-primary" onclick="generateGoshwara()">Goshwara</button>
+<button class="btn btn-primary" onclick="generateFTF()">FTF Report</button>
+<button class="btn btn-success" onclick="window.print()">Print</button>
+</div>
+<div id="reportOutput" class="card"></div>
+</div>
+
+</div>
+
+<script>
+let students = JSON.parse(localStorage.getItem('students_v2') || '[]');
+let attendance = JSON.parse(localStorage.getItem('attendance_v2') || '{}');
+
+function openTab(tabName){
+document.querySelectorAll('.tabcontent').forEach(t=>t.style.display='none');
+document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+document.getElementById(tabName).style.display='block';
+event.target.classList.add('active');
+if(tabName==='students') loadStudents();
+if(tabName==='attendance') loadAttendanceTable();
+}
+
+function toggleForm(){
+document.getElementById('studentForm').classList.toggle('show');
+}
+
+function addStudent(){
+let name=document.getElementById('stuName').value.trim();
+let father=document.getElementById('stuFather').value.trim();
+let cls=document.getElementById('stuClass').value.trim();
+if(!name) return alert('نام لکھیں');
+students.push({name,father,cls});
+localStorage.setItem('students_v2', JSON.stringify(students));
+document.getElementById('stuName').value='';
+document.getElementById('stuFather').value='';
+document.getElementById('stuClass').value='';
+toggleForm();
+loadStudents();
+}
+
+function loadStudents(){
+let tbody=document.querySelector('#studentTable tbody');
+tbody.innerHTML='';
+students.forEach((s,i)=>{
+tbody.innerHTML+=`<tr><td>${i+1}</td><td>${s.name}</td><td>${s.father}</td><td>${s.cls}</td><td><button class="btn btn-danger" onclick="delStudent(${i})">X</button></td></tr>`;
+});
+}
+
+function delStudent(i){
+students.splice(i,1);
+localStorage.setItem('students_v2', JSON.stringify(students));
+loadStudents();
+}
+
+function loadAttendanceTable(){
+let tbody=document.querySelector('#attTable tbody');
+tbody.innerHTML='';
+students.forEach((s,i)=>{
+tbody.innerHTML+=`<tr><td>${i+1}</td><td>${s.name}</td><td><select id="att${i}"><option value="P">حاضر</option><option value="A">غیر حاضر</option></select></td></tr>`;
+});
+}
+
+function saveAttendance(){
+let date=document.getElementById('attDate').value;
+let incharge=document.getElementById('classIncharge').value;
+let period=document.getElementById('period').value;
+if(!date) return alert('تاریخ سیلیکٹ کریں');
+let att={};
+students.forEach((s,i)=>{
+att[s.name]=document.getElementById('att'+i).value;
+});
+attendance[date+'_'+period]={date,incharge,period,data:att};
+localStorage.setItem('attendance_v2', JSON.stringify(attendance));
+alert('حاضری سیو ہو گئی');
+}
+
+function generateGoshwara(){
+let date=document.getElementById('reportDate').value;
+let html=`<h3>Goshwara - ${date}</h3><table><tr><th>نام</th><th>حاضری</th></tr>`;
+for(let key in attendance){
+if(attendance[key].date===date){
+for(let n in attendance[key].data){
+html+=`<tr><td>${n}</td><td>${attendance[key].data[n]}</td></tr>`;
+}
+}}
+html+='</table>';
+document.getElementById('reportOutput').innerHTML=html;
+}
+
+function generateFTF(){
+let date=document.getElementById('reportDate').value;
+let present=0, absent=0;
+for(let key in attendance){
+if(attendance[key].date===date){
+for(let n in attendance[key].data){
+if(attendance[key].data[n]==='P') present++; else absent++;
+}
+}}
+document.getElementById('reportOutput').innerHTML=`<h3>FTF Report - ${date}</h3><p>حاضر: ${present}</p><p>غیر حاضر: ${absent}</p>`;
+}
+
+function exportData(){
+let data={students,attendance};
+let blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+let a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='backup_v2.json';
+a.click();
+}
+
+function importData(e){
+let file=e.target.files[0];
+let reader=new FileReader();
+reader.onload=function(){
+let data=
